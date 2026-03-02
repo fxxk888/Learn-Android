@@ -98,6 +98,7 @@ class AddLiveStreamerActivity : ComponentActivity() {
                 val selectedGroupId by viewModel.selectedGroupId.collectAsState()
                 val context = LocalContext.current
                 val groupNameExistsError = stringResource(R.string.group_name_exists_error)
+                val appName = stringResource(R.string.app_name)
 
                 LaunchedEffect(Unit) {
                     if (viewModel.shouldShowInitialGroupDialog()) {
@@ -144,10 +145,10 @@ class AddLiveStreamerActivity : ComponentActivity() {
                                     }
                                     IconButton(onClick = {
                                         val timestamp = SimpleDateFormat(
-                                            "yyyyMMdd_HHmmss",
+                                            "yyyy_MM_dd_HH_mm_ss",
                                             Locale.getDefault()
                                         ).format(Date())
-                                        exportLauncher.launch("backup_$timestamp.db")
+                                        exportLauncher.launch("${appName}_backup_$timestamp.db")
                                     }) {
                                         Icon(
                                             imageVector = Icons.Default.FileUpload,
