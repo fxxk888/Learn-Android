@@ -106,10 +106,13 @@ class QueryFansClubInfoActivity : ComponentActivity() {
             val groups by viewModel.groups.collectAsState()
             val selectedGroupIds by viewModel.selectedGroupIds.collectAsState()
             val isAllSelected by viewModel.isAllSelected.collectAsState()
-            
+
             var currentTime by remember { mutableStateOf("") }
             var filterMenuExpanded by remember { mutableStateOf(false) }
             val lazyListState = rememberLazyListState()
+
+            val doneLabel = stringResource(R.string.done_label)
+            val errorLabel = stringResource(R.string.error)
 
             LaunchedEffect(true) {
                 val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -147,46 +150,45 @@ class QueryFansClubInfoActivity : ComponentActivity() {
                                             contentDescription = stringResource(R.string.add_live_steamer_label)
                                         )
                                     }
-                                    
+
                                     Box {
                                         IconButton(onClick = { filterMenuExpanded = true }) {
                                             Icon(
                                                 imageVector = Icons.Default.MoreVert,
-                                                contentDescription = "Filter Groups"
+                                                contentDescription = stringResource(R.string.filter_groups_label)
                                             )
                                         }
                                         DropdownMenu(
                                             expanded = filterMenuExpanded,
-                                            onDismissRequest = { filterMenuExpanded = false }
-                                        ) {
-                                            DropdownMenuItem(
-                                                text = { 
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Text("All", Modifier.weight(1f))
-                                                        Spacer(Modifier.width(8.dp))
-                                                        Checkbox(
-                                                            checked = isAllSelected,
-                                                            onCheckedChange = null
-                                                        )
-                                                    }
-                                                },
-                                                onClick = { viewModel.selectAllGroups() }
-                                            )
-                                            
+                                            onDismissRequest = { filterMenuExpanded = false }) {
+                                            DropdownMenuItem(text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        stringResource(R.string.all_groups_label),
+                                                        Modifier.weight(1f)
+                                                    )
+                                                    Spacer(Modifier.width(8.dp))
+                                                    Checkbox(
+                                                        checked = isAllSelected,
+                                                        onCheckedChange = null
+                                                    )
+                                                }
+                                            }, onClick = { viewModel.selectAllGroups() })
+
                                             groups.forEach { group ->
                                                 DropdownMenuItem(
                                                     text = {
-                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            Text(group.name, Modifier.weight(1f))
-                                                            Spacer(Modifier.width(8.dp))
-                                                            Checkbox(
-                                                                checked = selectedGroupIds.contains(group.id),
-                                                                onCheckedChange = null
-                                                            )
-                                                        }
-                                                    },
-                                                    onClick = { viewModel.toggleGroupSelection(group.id) }
-                                                )
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text(group.name, Modifier.weight(1f))
+                                                        Spacer(Modifier.width(8.dp))
+                                                        Checkbox(
+                                                            checked = selectedGroupIds.contains(
+                                                                group.id
+                                                            ), onCheckedChange = null
+                                                        )
+                                                    }
+                                                },
+                                                    onClick = { viewModel.toggleGroupSelection(group.id) })
                                             }
                                         }
                                     }
@@ -219,8 +221,11 @@ class QueryFansClubInfoActivity : ComponentActivity() {
 
                 is FansClubUiState.Success -> {
                     LaunchedEffect(state) {
-                        Toast.makeText(this@QueryFansClubInfoActivity, "Done", Toast.LENGTH_LONG)
-                            .show()
+                        Toast.makeText(
+                            context,
+                            doneLabel,
+                            Toast.LENGTH_LONG
+                        ).show()
                         lazyListState.animateScrollToItem(3)
                     }
                 }
@@ -228,9 +233,9 @@ class QueryFansClubInfoActivity : ComponentActivity() {
                 is FansClubUiState.Error -> {
                     LaunchedEffect(state) {
                         Toast.makeText(
-                            this@QueryFansClubInfoActivity, state.message, Toast.LENGTH_LONG
+                            context, state.message, Toast.LENGTH_LONG
                         ).show()
-                        LogUtils.e("${getString(R.string.error)} ${state.message}")
+                        LogUtils.e("$errorLabel ${state.message}")
                     }
                 }
 
@@ -427,7 +432,7 @@ fun UserInfoItem(item: UiUserInfoItem) {
                 AsyncImage(
                     model = item.skinBgUrl ?: R.drawable.default_bg,
                     imageLoader = imageLoader,
-                    contentDescription = "Background Image",
+                    contentDescription = stringResource(R.string.background_image_desc),
                     modifier = Modifier.matchParentSize(),
                     contentScale = ContentScale.FillBounds
                 )
@@ -456,7 +461,7 @@ fun UserInfoItem(item: UiUserInfoItem) {
 
                         AsyncImage(
                             model = imageRequest,
-                            contentDescription = "Avatar",
+                            contentDescription = stringResource(R.string.avatar_image_desc),
                             modifier = Modifier
                                 .size(60.dp)
                                 .clip(CircleShape)
@@ -467,7 +472,7 @@ fun UserInfoItem(item: UiUserInfoItem) {
                         item.skinUrl?.let {
                             AsyncImage(
                                 model = it,
-                                contentDescription = "Skin",
+                                contentDescription = stringResource(R.string.skin_image_desc),
                                 modifier = Modifier.size(80.dp),
                                 contentScale = ContentScale.FillBounds
                             )
@@ -492,9 +497,10 @@ fun UserInfoItem(item: UiUserInfoItem) {
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             Text(
-                                text = "ID: ${item.account ?: "N/FansClubInfoBean"}",
-                                fontSize = 14.sp,
-                                color = Color.White
+                                text = stringResource(
+                                    R.string.id_prefix,
+                                    item.account ?: "N/FansClubInfoBean"
+                                ), fontSize = 14.sp, color = Color.White
                             )
                             item.ip?.let {
 
@@ -505,7 +511,9 @@ fun UserInfoItem(item: UiUserInfoItem) {
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             Text(
-                                text = "Level: ${item.level}", fontSize = 14.sp, color = Color.White
+                                text = stringResource(R.string.level_prefix, item.level ?: "-"),
+                                fontSize = 14.sp,
+                                color = Color.White
                             )
                         }
 
@@ -555,7 +563,7 @@ private fun FansClubItemRow(item: UiFansClubItem) {
 
                 AsyncImage(
                     model = item.levelUrl,
-                    contentDescription = "Level",
+                    contentDescription = stringResource(R.string.level_image_desc),
                     contentScale = ContentScale.Fit
                 )
 
@@ -581,7 +589,7 @@ private fun FansClubItemRow(item: UiFansClubItem) {
             AsyncImage(
                 modifier = Modifier.width(28.dp),
                 model = item.vipUrl,
-                contentDescription = "Vip",
+                contentDescription = stringResource(R.string.vip_image_desc),
                 contentScale = ContentScale.Fit,
             )
         }

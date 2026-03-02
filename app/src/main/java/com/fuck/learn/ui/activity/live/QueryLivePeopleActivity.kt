@@ -143,7 +143,7 @@ class QueryLivePeopleActivity : ComponentActivity() {
                                     IconButton(onClick = { menuExpanded = true }) {
                                         Icon(
                                             Icons.Default.MoreVert,
-                                            contentDescription = "More options"
+                                            contentDescription = stringResource(R.string.more_options_label)
                                         )
                                     }
                                     DropdownMenu(
@@ -155,12 +155,12 @@ class QueryLivePeopleActivity : ComponentActivity() {
                                             ), verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "Auto refresh(s)",
+                                                text = stringResource(R.string.auto_refresh_label),
                                                 modifier = Modifier.weight(1f)
                                             )
 
                                             IconButton(onClick = { viewModel.incrementRefreshInterval() }) {
-                                                Icon(Icons.Default.Add, "Increase interval")
+                                                Icon(Icons.Default.Add, stringResource(R.string.increase_interval_desc))
                                             }
 
                                             Text(
@@ -170,7 +170,7 @@ class QueryLivePeopleActivity : ComponentActivity() {
                                             )
 
                                             IconButton(onClick = { viewModel.decrementRefreshInterval() }) {
-                                                Icon(Icons.Default.Remove, "Decrease interval")
+                                                Icon(Icons.Default.Remove, stringResource(R.string.decrease_interval_desc))
                                             }
 
                                             Checkbox(
@@ -196,7 +196,7 @@ class QueryLivePeopleActivity : ComponentActivity() {
                     }
                 }, floatingActionButton = {
                     FloatingActionButton(onClick = { viewModel.loadLivePeopleData() }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.more_options_label))
                     }
                 }) { innerPadding ->
                     LivePeopleScreen(
@@ -221,7 +221,7 @@ class QueryLivePeopleActivity : ComponentActivity() {
                         if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                             viewModel.loadLivePeopleData()
                         }
-                        LogUtils.e("${getString(R.string.error)} ${state.message}")
+                        LogUtils.e("${context.getString(R.string.error)} ${state.message}")
                     }
                 }
 
@@ -290,7 +290,7 @@ private fun LivePeopleScreen(
                             Spacer(modifier = Modifier.size(6.dp))
 
                             Text(
-                                text = "Start at:$it",
+                                text = stringResource(R.string.start_at_prefix, it),
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
                                 modifier = Modifier.basicMarquee(1)
@@ -318,7 +318,7 @@ private fun LivePeopleScreen(
 
                             Icon(
                                 imageVector = Icons.Default.Person,
-                                contentDescription = "User count",
+                                contentDescription = stringResource(R.string.user_count_desc),
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -342,7 +342,7 @@ private fun LivePeopleScreen(
 
                                     Icon(
                                         imageVector = icon,
-                                        contentDescription = "User count diff",
+                                        contentDescription = stringResource(R.string.user_count_diff_desc),
                                         modifier = Modifier.size(16.dp),
                                         tint = color
                                     )
@@ -362,7 +362,7 @@ private fun LivePeopleScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             item.visits?.let {
                                 Text(
-                                    text = "Visits:${NumberUtils.withCommas(it)}",
+                                    text = stringResource(R.string.visits_prefix, NumberUtils.withCommas(it)),
                                     maxLines = 1,
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -377,7 +377,7 @@ private fun LivePeopleScreen(
 
                                     Icon(
                                         imageVector = icon,
-                                        contentDescription = "User count diff",
+                                        contentDescription = stringResource(R.string.user_count_diff_desc),
                                         modifier = Modifier.size(16.dp),
                                         tint = color
                                     )

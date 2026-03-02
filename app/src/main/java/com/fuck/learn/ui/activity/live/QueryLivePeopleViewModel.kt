@@ -131,7 +131,7 @@ class LivePeopleViewModel(application: Application) : AndroidViewModel(applicati
                             userCount = null
                             createTime = null
                             visits = null
-                            message = "Not started"
+                            message = context.getString(R.string.not_started_label)
                         }
 
                         visits = visits?.let { current ->

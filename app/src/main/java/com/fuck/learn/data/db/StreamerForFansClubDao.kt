@@ -28,9 +28,9 @@ interface StreamerForFansClubDao {
     @Query("SELECT * FROM streamer_for_fan_club WHERE groupId = :groupId ORDER BY displayOrder ASC")
     fun getStreamersByGroup(groupId: Long): Flow<List<StreamerForFansClub>>
 
-    @Query("SELECT * FROM streamer_for_fan_club ORDER BY displayOrder ASC")
+    @Query("SELECT * FROM streamer_for_fan_club ORDER BY groupId ASC, displayOrder ASC")
     fun getAllStreamers(): Flow<List<StreamerForFansClub>>
 
-    @Query("SELECT secUid FROM streamer_for_fan_club ORDER BY displayOrder ASC")
-    fun getAllSecUids(): Flow<List<String>>
+    @Query("SELECT * FROM streamer_for_fan_club ORDER BY groupId ASC, displayOrder ASC")
+    suspend fun getAllStreamersOnce(): List<StreamerForFansClub>
 }

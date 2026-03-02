@@ -10,6 +10,12 @@ interface StreamerGroupDao {
     @Insert
     suspend fun insert(group: StreamerGroup): Long
 
+    @Query("SELECT id FROM streamer_group WHERE name = :name LIMIT 1")
+    suspend fun getGroupIdByName(name: String): Long?
+
+    @Query("SELECT * FROM streamer_group")
+    suspend fun getAllGroupsOnce(): List<StreamerGroup>
+
     @Query("SELECT * FROM streamer_group ORDER BY displayOrder ASC")
     fun getAllGroups(): Flow<List<StreamerGroup>>
 

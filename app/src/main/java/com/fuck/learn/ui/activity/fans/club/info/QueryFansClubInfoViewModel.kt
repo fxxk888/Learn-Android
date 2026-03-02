@@ -178,7 +178,7 @@ class QueryFansClubInfoViewModel(application: Application) : AndroidViewModel(ap
                 val ipRegex = """\\"ipLocation\\":\\"IP属地：(.*?)\\"""".toRegex()
                 val nickname = nicknameRegex.find(body)?.groups?.get(1)?.value
                 if (nickname.isNullOrBlank()) {
-                    _fansClubUiState.value = FansClubUiState.Error("User does not exist")
+                    _fansClubUiState.value = FansClubUiState.Error(context.getString(R.string.user_not_found))
                     return@launch
                 }
                 val img = imgRegex.find(body)?.groups?.get(1)?.value
@@ -273,12 +273,12 @@ class QueryFansClubInfoViewModel(application: Application) : AndroidViewModel(ap
                     )
                     resultList.add(newItem)
                     _uiFansClubItems.value = resultList.toList()
-                    delay(200)
+                    delay(150)
                 }
                 _fansClubUiState.value = FansClubUiState.Success
             } catch (e: Exception) {
                 LogUtils.e("${context.getString(R.string.error)} ${e.localizedMessage}")
-                _fansClubUiState.value = FansClubUiState.Error(e.message.toString())
+                _fansClubUiState.value = FansClubUiState.Error(e.message ?: getApplication<Application>().getString(R.string.unknown_error))
             } finally {
                 _isQuerying.value = false
             }

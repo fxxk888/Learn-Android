@@ -43,7 +43,7 @@ class AddLiveStreamerViewModel(application: Application) : AndroidViewModel(appl
                 refreshStreamer(secUid)
             } catch (e: Exception) {
                 _addLiveStreamerUiState.value =
-                    AddLiveStreamerUiState.Error(e.message ?: "Unknown error")
+                    AddLiveStreamerUiState.Error(e.message ?: getApplication<Application>().getString(R.string.unknown_error))
             }
         }
     }
@@ -72,8 +72,8 @@ class AddLiveStreamerViewModel(application: Application) : AndroidViewModel(appl
                         RetrofitClient.apiService.getLiveWebRidsInfo(uid ?: "")
 
                     if (body.data?.anchorWebRids?.get(uid).isNullOrBlank()) {
-                        Toast.makeText(context, "Add failed,This user has never lived", Toast.LENGTH_SHORT).show()
-                        _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error("Add failed,This user has never lived")
+                        Toast.makeText(context, context.getString(R.string.add_failed_never_lived), Toast.LENGTH_SHORT).show()
+                        _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error(context.getString(R.string.add_failed_never_lived))
                     } else {
                         val streamerForLive = StreamerForLive(
                             uid = uid ?: "",
@@ -88,15 +88,15 @@ class AddLiveStreamerViewModel(application: Application) : AndroidViewModel(appl
                         if (rowId > -1L) {
                             _addLiveStreamerUiState.value = AddLiveStreamerUiState.Success
                         } else {
-                            _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error("Add failed")
+                            _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error(context.getString(R.string.add_failed))
                         }
                     }
                 } else {
-                    _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error("User does not exist")
+                    _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error(context.getString(R.string.user_not_found))
                 }
             } catch (e: Exception) {
                 _addLiveStreamerUiState.value =
-                    AddLiveStreamerUiState.Error(e.message ?: "Unknown error")
+                    AddLiveStreamerUiState.Error(e.message ?: getApplication<Application>().getString(R.string.unknown_error))
             }
         }
     }

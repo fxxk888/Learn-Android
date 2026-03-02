@@ -111,6 +111,9 @@ fun AddLiveStreamerScreen(
     val isLoading = addLiveStreamerUiState is AddLiveStreamerUiState.Loading
     val coroutineScope = rememberCoroutineScope()
 
+    val successMessage = stringResource(R.string.success_label)
+    val errorMessagePrefix = stringResource(R.string.error)
+
     var displayedStreamerForLive by remember { mutableStateOf<List<StreamerForLive>>(emptyList()) }
     LaunchedEffect(streamersFromDb) {
         displayedStreamerForLive = streamersFromDb
@@ -145,7 +148,7 @@ fun AddLiveStreamerScreen(
             enabled = !isLoading
 
         ) {
-            Text(if (isLoading) "Adding..." else "Add")
+            Text(if (isLoading) stringResource(R.string.adding_label) else stringResource(R.string.add_button))
         }
 
         Spacer(modifier = Modifier.size(8.dp))
@@ -168,7 +171,7 @@ fun AddLiveStreamerScreen(
                         ) {
                             AsyncImage(
                                 model = streamer.avatarUrl,
-                                contentDescription = "${streamer.nickname} avatar",
+                                contentDescription = "${streamer.nickname} ${stringResource(R.string.avatar_image_desc)}",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(48.dp)
@@ -182,7 +185,7 @@ fun AddLiveStreamerScreen(
                                 onClick = { viewModel.refreshStreamer(streamer.secUid) },
                                 modifier = Modifier.size(20.dp)
                             ) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.more_options_label))
                             }
 
                             Spacer(modifier = Modifier.width(8.dp))
@@ -191,7 +194,7 @@ fun AddLiveStreamerScreen(
                                 onClick = { viewModel.deleteStreamer(streamer) },
                                 modifier = Modifier.size(20.dp)
                             ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_label))
                             }
 
                             Spacer(modifier = Modifier.width(8.dp))
@@ -199,7 +202,7 @@ fun AddLiveStreamerScreen(
                             IconButton(onClick = {}, modifier = Modifier.size(20.dp)) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = "Reorder",
+                                    contentDescription = stringResource(R.string.more_options_label),
                                     modifier = Modifier.draggableHandle(onDragStopped = {
                                         viewModel.updateStreamerOrder(displayedStreamerForLive)
                                     })
@@ -212,7 +215,6 @@ fun AddLiveStreamerScreen(
             }
         }
 
-        val errorMessage = stringResource(R.string.error)
         when (val state = addLiveStreamerUiState) {
             is AddLiveStreamerUiState.Loading -> {
                 // Now handled by the button's state
@@ -220,7 +222,7 @@ fun AddLiveStreamerScreen(
 
             is AddLiveStreamerUiState.Success -> {
                 LaunchedEffect(state) {
-                    Toast.makeText(context, "Success", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, successMessage, Toast.LENGTH_SHORT).show()
                     streamerUrl = "" // Clear input field
                     if (streamersFromDb.isNotEmpty()) {
                         coroutineScope.launch {
@@ -235,7 +237,7 @@ fun AddLiveStreamerScreen(
                 LaunchedEffect(state) {
                     Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
                     viewModel.resetAddStreamerState()
-                    LogUtils.e("$errorMessage ${state.message}")
+                    LogUtils.e("$errorMessagePrefix ${state.message}")
                 }
             }
 

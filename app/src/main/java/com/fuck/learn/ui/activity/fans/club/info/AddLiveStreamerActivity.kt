@@ -3,8 +3,10 @@ package com.fuck.learn.ui.activity.fans.club.info
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +29,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -48,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,6 +73,9 @@ import com.fuck.learn.ui.theme.DouyinToolTheme
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 class AddLiveStreamerActivity : ComponentActivity() {
@@ -83,11 +91,13 @@ class AddLiveStreamerActivity : ComponentActivity() {
                 var showAddGroupDialog by remember { mutableStateOf(false) }
                 var showRenameGroupDialog by remember { mutableStateOf(false) }
                 var showDeleteGroupDialog by remember { mutableStateOf(false) }
-                var deleteTargetGroupId by remember { mutableStateOf(0L) }
-                var renameTargetGroupId by remember { mutableStateOf(0L) }
+                var deleteTargetGroupId by remember { mutableLongStateOf(0L) }
+                var renameTargetGroupId by remember { mutableLongStateOf(0L) }
                 var renameTargetGroupName by remember { mutableStateOf("") }
                 val groups by viewModel.groups.collectAsState()
                 val selectedGroupId by viewModel.selectedGroupId.collectAsState()
+                val context = LocalContext.current
+                val groupNameExistsError = stringResource(R.string.group_name_exists_error)
 
                 LaunchedEffect(Unit) {
                     if (viewModel.shouldShowInitialGroupDialog()) {
@@ -101,9 +111,19 @@ class AddLiveStreamerActivity : ComponentActivity() {
                     }
                 }
 
+                val exportLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
+                    onResult = { uri ->
+                        uri?.let { viewModel.exportDatabase(it) }
+                    })
+
+                val importLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent(), onResult = { uri ->
+                        uri?.let { viewModel.importDatabase(it) }
+                    })
+
                 Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = {
+                    modifier = Modifier.fillMaxSize(), topBar = {
                         Column {
                             TopAppBar(
                                 title = { Text(stringResource(R.string.add_live_steamer_label)) },
@@ -116,22 +136,39 @@ class AddLiveStreamerActivity : ComponentActivity() {
                                     }
                                 },
                                 actions = {
+                                    IconButton(onClick = { importLauncher.launch("*/*") }) {
+                                        Icon(
+                                            imageVector = Icons.Default.FileDownload,
+                                            contentDescription = stringResource(R.string.import_label)
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        val timestamp = SimpleDateFormat(
+                                            "yyyyMMdd_HHmmss",
+                                            Locale.getDefault()
+                                        ).format(Date())
+                                        exportLauncher.launch("backup_$timestamp.db")
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.FileUpload,
+                                            contentDescription = stringResource(R.string.export_label)
+                                        )
+                                    }
                                     IconButton(onClick = { menuExpanded = true }) {
                                         Icon(
                                             imageVector = Icons.Default.MoreVert,
-                                            contentDescription = "More options"
+                                            contentDescription = stringResource(R.string.more_options_label)
                                         )
                                     }
                                     DropdownMenu(
                                         expanded = menuExpanded,
-                                        onDismissRequest = { menuExpanded = false }
-                                    ) {
+                                        onDismissRequest = { menuExpanded = false }) {
                                         groups.forEach { group ->
                                             val isSelected = group.id == selectedGroupId
                                             DropdownMenuItem(
                                                 modifier = if (isSelected) Modifier.background(
-                                                    MaterialTheme.colorScheme.primaryContainer
-                                                ) else Modifier,
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            ) else Modifier,
                                                 text = { Text(text = group.name) },
                                                 trailingIcon = {
                                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -141,12 +178,13 @@ class AddLiveStreamerActivity : ComponentActivity() {
                                                                 renameTargetGroupId = group.id
                                                                 renameTargetGroupName = group.name
                                                                 showRenameGroupDialog = true
-                                                            },
-                                                            modifier = Modifier.size(24.dp)
+                                                            }, modifier = Modifier.size(24.dp)
                                                         ) {
                                                             Icon(
                                                                 imageVector = Icons.Default.Edit,
-                                                                contentDescription = "Rename",
+                                                                contentDescription = stringResource(
+                                                                    R.string.rename_label
+                                                                ),
                                                                 modifier = Modifier.size(18.dp),
                                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                             )
@@ -157,12 +195,13 @@ class AddLiveStreamerActivity : ComponentActivity() {
                                                                 menuExpanded = false
                                                                 deleteTargetGroupId = group.id
                                                                 showDeleteGroupDialog = true
-                                                            },
-                                                            modifier = Modifier.size(24.dp)
+                                                            }, modifier = Modifier.size(24.dp)
                                                         ) {
                                                             Icon(
                                                                 imageVector = Icons.Default.Delete,
-                                                                contentDescription = "Delete",
+                                                                contentDescription = stringResource(
+                                                                    R.string.delete_label
+                                                                ),
                                                                 modifier = Modifier.size(18.dp),
                                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                             )
@@ -172,45 +211,39 @@ class AddLiveStreamerActivity : ComponentActivity() {
                                                 onClick = {
                                                     viewModel.selectGroup(group.id)
                                                     menuExpanded = false
-                                                }
-                                            )
+                                                })
                                         }
                                         if (groups.isNotEmpty()) {
                                             HorizontalDivider()
                                         }
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.End
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Add,
-                                                        contentDescription = "Add group",
-                                                    )
-                                                }
-                                            },
-                                            onClick = {
-                                                menuExpanded = false
-                                                showAddGroupDialog = true
+                                        DropdownMenuItem(text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.End
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = stringResource(R.string.add_group_label),
+                                                )
                                             }
-                                        )
+                                        }, onClick = {
+                                            menuExpanded = false
+                                            showAddGroupDialog = true
+                                        })
                                     }
-                                }
-                            )
+                                })
                             HorizontalDivider()
                         }
                     }) { innerPadding ->
                     AddLiveStreamerScreen(
-                        modifier = Modifier.padding(innerPadding),
-                        viewModel = viewModel
+                        modifier = Modifier.padding(innerPadding), viewModel = viewModel
                     )
                 }
 
                 if (showAddGroupDialog) {
                     val scope = rememberCoroutineScope()
                     AddGroupDialog(
-                        title = "New Group",
+                        title = stringResource(R.string.new_group_title),
                         initialName = "",
                         cancelable = groups.isNotEmpty(),
                         onDismiss = { showAddGroupDialog = false },
@@ -219,17 +252,20 @@ class AddLiveStreamerActivity : ComponentActivity() {
                                 if (viewModel.addGroup(name)) {
                                     showAddGroupDialog = false
                                 } else {
-                                    Toast.makeText(this@AddLiveStreamerActivity, "Group name already exists", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        groupNameExistsError,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
-                        }
-                    )
+                        })
                 }
 
                 if (showRenameGroupDialog) {
                     val scope = rememberCoroutineScope()
                     AddGroupDialog(
-                        title = "Rename Group",
+                        title = stringResource(R.string.rename_group_title),
                         initialName = renameTargetGroupName,
                         onDismiss = { showRenameGroupDialog = false },
                         onConfirm = { name ->
@@ -237,18 +273,21 @@ class AddLiveStreamerActivity : ComponentActivity() {
                                 if (viewModel.renameGroup(renameTargetGroupId, name)) {
                                     showRenameGroupDialog = false
                                 } else {
-                                    Toast.makeText(this@AddLiveStreamerActivity, "Group name already exists", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        groupNameExistsError,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
-                        }
-                    )
+                        })
                 }
 
                 if (showDeleteGroupDialog) {
                     AlertDialog(
                         onDismissRequest = { showDeleteGroupDialog = false },
-                        title = { Text("Delete Group") },
-                        text = { Text("Are you sure delete this group?") },
+                        title = { Text(stringResource(R.string.delete_group_title)) },
+                        text = { Text(stringResource(R.string.delete_group_confirmation)) },
                         confirmButton = {
                             TextButton(onClick = {
                                 viewModel.deleteGroup(deleteTargetGroupId)
@@ -257,15 +296,14 @@ class AddLiveStreamerActivity : ComponentActivity() {
                                     showAddGroupDialog = true
                                 }
                             }) {
-                                Text("Delete")
+                                Text(stringResource(R.string.delete_button))
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { showDeleteGroupDialog = false }) {
-                                Text("Cancel")
+                                Text(stringResource(R.string.cancel_button))
                             }
-                        }
-                    )
+                        })
                 }
             }
         }
@@ -288,32 +326,29 @@ fun AddGroupDialog(
             OutlinedTextField(
                 value = groupName,
                 onValueChange = { groupName = it },
-                label = { Text("Group Name") },
+                label = { Text(stringResource(R.string.group_name_label)) },
                 singleLine = true
             )
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(groupName) },
-                enabled = groupName.isNotBlank()
+                onClick = { onConfirm(groupName) }, enabled = groupName.isNotBlank()
             ) {
-                Text("OK")
+                Text(stringResource(R.string.ok_button))
             }
         },
         dismissButton = if (cancelable) {
             {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_button))
                 }
             }
-        } else null
-    )
+        } else null)
 }
 
 @Composable
 fun AddLiveStreamerScreen(
-    modifier: Modifier = Modifier,
-    viewModel: AddLiveStreamerViewModel
+    modifier: Modifier = Modifier, viewModel: AddLiveStreamerViewModel
 ) {
     var streamerUrl by remember { mutableStateOf("") }
     val addLiveStreamerUiState by viewModel.addLiveStreamerUiState.collectAsState()
@@ -323,8 +358,13 @@ fun AddLiveStreamerScreen(
     val isLoading = addLiveStreamerUiState is AddLiveStreamerUiState.Loading
     val coroutineScope = rememberCoroutineScope()
 
+    val successMessage = stringResource(R.string.success_label)
 
-    var displayedStreamerForFansClubs by remember { mutableStateOf<List<StreamerForFansClub>>(emptyList()) }
+    var displayedStreamerForFansClubs by remember {
+        mutableStateOf<List<StreamerForFansClub>>(
+            emptyList()
+        )
+    }
     LaunchedEffect(streamersFromDb) {
         displayedStreamerForFansClubs = streamersFromDb
     }
@@ -353,12 +393,10 @@ fun AddLiveStreamerScreen(
             onClick = {
                 viewModel.fetchUserProfile(streamerUrl)
                 keyboardController?.hide()
-            },
-            modifier = Modifier.padding(top = 8.dp),
-            enabled = !isLoading
+            }, modifier = Modifier.padding(top = 8.dp), enabled = !isLoading
 
         ) {
-            Text(if (isLoading) "Adding..." else "Add")
+            Text(if (isLoading) stringResource(R.string.adding_label) else stringResource(R.string.add_button))
         }
 
         Spacer(modifier = Modifier.size(8.dp))
@@ -369,8 +407,7 @@ fun AddLiveStreamerScreen(
         ) {
             items(displayedStreamerForFansClubs, key = { it.secUid }) { streamer ->
                 ReorderableItem(
-                    state = reorderableState,
-                    key = streamer.secUid
+                    state = reorderableState, key = streamer.secUid
                 ) {
                     Column {
                         Row(
@@ -381,7 +418,7 @@ fun AddLiveStreamerScreen(
                         ) {
                             AsyncImage(
                                 model = streamer.avatarUrl,
-                                contentDescription = "${streamer.nickname} avatar",
+                                contentDescription = "${streamer.nickname} ${stringResource(R.string.avatar_image_desc)}",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(48.dp)
@@ -395,7 +432,10 @@ fun AddLiveStreamerScreen(
                                 onClick = { viewModel.refreshStreamer(streamer.secUid) },
                                 modifier = Modifier.size(20.dp)
                             ) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = stringResource(R.string.more_options_label)
+                                )
                             }
 
                             Spacer(modifier = Modifier.width(8.dp))
@@ -404,7 +444,10 @@ fun AddLiveStreamerScreen(
                                 onClick = { viewModel.deleteStreamer(streamer) },
                                 modifier = Modifier.size(20.dp)
                             ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.delete_label)
+                                )
                             }
 
                             Spacer(modifier = Modifier.width(8.dp))
@@ -412,7 +455,7 @@ fun AddLiveStreamerScreen(
                             IconButton(onClick = {}, modifier = Modifier.size(20.dp)) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = "Reorder",
+                                    contentDescription = stringResource(R.string.more_options_label),
                                     modifier = Modifier.draggableHandle(onDragStopped = {
                                         viewModel.updateStreamerOrder(displayedStreamerForFansClubs)
                                     })
@@ -427,13 +470,12 @@ fun AddLiveStreamerScreen(
 
         when (val state = addLiveStreamerUiState) {
             is AddLiveStreamerUiState.Loading -> {
-                // Now handled by the button's state
             }
 
             is AddLiveStreamerUiState.Success -> {
                 LaunchedEffect(state) {
-                    Toast.makeText(context, "Success", Toast.LENGTH_SHORT).show()
-                    streamerUrl = "" // Clear input field
+                    Toast.makeText(context, successMessage, Toast.LENGTH_SHORT).show()
+                    streamerUrl = ""
                     if (streamersFromDb.isNotEmpty()) {
                         coroutineScope.launch {
                             lazyListState.animateScrollToItem(index = streamersFromDb.lastIndex)
@@ -450,7 +492,7 @@ fun AddLiveStreamerScreen(
                 }
             }
 
-            is AddLiveStreamerUiState.Initial -> { /* Do nothing */
+            is AddLiveStreamerUiState.Initial -> {
             }
         }
 

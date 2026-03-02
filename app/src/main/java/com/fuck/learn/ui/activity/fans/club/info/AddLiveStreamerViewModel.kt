@@ -1,8 +1,10 @@
 package com.fuck.learn.ui.activity.fans.club.info
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.Room
 import com.fuck.learn.R
 import com.fuck.learn.api.RetrofitClient
 import com.fuck.learn.data.db.AppDatabase
@@ -11,6 +13,7 @@ import com.fuck.learn.data.db.StreamerGroup
 import com.fuck.learn.utils.DouyinParamUtils
 import com.fuck.learn.utils.DouyinUrlUtils
 import com.tencent.mmkv.MMKV
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,6 +22,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddLiveStreamerViewModel(application: Application) : AndroidViewModel(application) {
@@ -93,7 +100,7 @@ class AddLiveStreamerViewModel(application: Application) : AndroidViewModel(appl
 
     fun fetchUserProfile(input: String) {
         viewModelScope.launch {
-            val context = getApplication<Application>().applicationContext
+            val context = getApplication<Application>()
             _addLiveStreamerUiState.value = AddLiveStreamerUiState.Loading
             try {
                 val secUid = DouyinUrlUtils.getSecUid(input)
@@ -105,7 +112,7 @@ class AddLiveStreamerViewModel(application: Application) : AndroidViewModel(appl
                 refreshStreamer(secUid)
             } catch (e: Exception) {
                 _addLiveStreamerUiState.value =
-                    AddLiveStreamerUiState.Error(e.message ?: "Unknown error")
+                    AddLiveStreamerUiState.Error(e.message ?: getApplication<Application>().getString(R.string.unknown_error))
             }
         }
     }
@@ -138,14 +145,14 @@ class AddLiveStreamerViewModel(application: Application) : AndroidViewModel(appl
                     if (rowId > -1L) {
                         _addLiveStreamerUiState.value = AddLiveStreamerUiState.Success
                     } else {
-                        _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error("Add failed")
+                        _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error(getApplication<Application>().getString(R.string.add_failed))
                     }
                 } else {
-                    _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error("User does not exist")
+                    _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error(getApplication<Application>().getString(R.string.user_not_found))
                 }
             } catch (e: Exception) {
-                _addLiveStreamerUiState.value =
-                    AddLiveStreamerUiState.Error(e.message ?: "Unknown error")
+                    _addLiveStreamerUiState.value =
+                        AddLiveStreamerUiState.Error(e.message ?: getApplication<Application>().getString(R.string.unknown_error))
             }
         }
     }
@@ -167,6 +174,92 @@ class AddLiveStreamerViewModel(application: Application) : AndroidViewModel(appl
 
     fun resetAddStreamerState() {
         _addLiveStreamerUiState.value = AddLiveStreamerUiState.Initial
+    }
+
+    fun exportDatabase(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                AppDatabase.getDatabase(getApplication()).query("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
+                
+                val dbFile = getApplication<Application>().getDatabasePath("streamer_database")
+                if (!dbFile.exists()) {
+                    withContext(Dispatchers.Main) {
+                        _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error(getApplication<Application>().getString(R.string.db_file_not_found))
+                    }
+                    return@launch
+                }
+                
+                getApplication<Application>().contentResolver.openFileDescriptor(uri, "w")?.use { pfd ->
+                    FileOutputStream(pfd.fileDescriptor).use { output ->
+                        FileInputStream(dbFile).use { input ->
+                            input.copyTo(output)
+                        }
+                        output.flush()
+                        pfd.fileDescriptor.sync()
+                    }
+                }
+                
+                withContext(Dispatchers.Main) {
+                    _addLiveStreamerUiState.value = AddLiveStreamerUiState.Success
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error(getApplication<Application>().getString(R.string.export_failed_prefix, e.message ?: ""))
+                }
+            }
+        }
+    }
+
+    fun importDatabase(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _addLiveStreamerUiState.value = AddLiveStreamerUiState.Loading
+            }
+            val context = getApplication<Application>()
+            try {
+                val tempFile = File(context.cacheDir, "temp_import_db")
+                
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val tempDb = Room.databaseBuilder(context, AppDatabase::class.java, tempFile.absolutePath)
+                    .allowMainThreadQueries()
+                    .build()
+
+                try {
+                    val importedGroups = tempDb.streamerGroupDao().getAllGroupsOnce()
+                    val importedStreamers = tempDb.streamerForFansClubDao().getAllStreamersOnce()
+
+                    for (impGroup in importedGroups) {
+                        var targetGroupId = groupDao.getGroupIdByName(impGroup.name)
+                        if (targetGroupId == null) {
+                            val maxOrder = groups.value.maxOfOrNull { it.displayOrder } ?: 0
+                            targetGroupId = groupDao.insert(StreamerGroup(name = impGroup.name, displayOrder = maxOrder + 1))
+                        }
+
+                        val streamersInThisGroup = importedStreamers.filter { it.groupId == impGroup.id }
+                        for (impStreamer in streamersInThisGroup) {
+                            if (streamerDao.getStreamer(impStreamer.secUid) == null) {
+                                streamerDao.insert(impStreamer.copy(groupId = targetGroupId))
+                            }
+                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        _addLiveStreamerUiState.value = AddLiveStreamerUiState.Success
+                    }
+                } finally {
+                    tempDb.close()
+                    tempFile.delete()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _addLiveStreamerUiState.value = AddLiveStreamerUiState.Error(context.getString(R.string.import_failed_prefix, e.message ?: ""))
+                }
+            }
+        }
     }
 }
 
